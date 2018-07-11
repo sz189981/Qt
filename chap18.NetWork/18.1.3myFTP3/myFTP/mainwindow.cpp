@@ -22,31 +22,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-//槽的定义
-void MainWindow::on_connectButton_clicked()
-{
-    ui->fileList->clear();
-    currentPath.clear();
-    isDirectory.clear();
-    ui->progressBar->setValue(0);
-
-    ftp = new QFtp(this);
-    connect(ftp, &QFtp::commandStarted,
-            this, &MainWindow::ftpCommandStarted);
-    connect(ftp, &QFtp::commandFinished,
-            this, &MainWindow::ftpCommandFinished);
-    connect(ftp, &QFtp::listInfo,           //listInfo信号在执行完list命令时发射
-            this, &MainWindow::addToList);
-    connect(ftp, &QFtp::dataTransferProgress,
-            this, &MainWindow::updateDataTransferProgress);
-
-    QString ftpServer = ui->ftpServerLineEdit->text();
-    QString userName  = ui->userNameLineEdit->text();
-    QString passWord  = ui->passWordLineEdit->text();
-    ftp->connectToHost(ftpServer, 21);
-    ftp->login(userName, passWord);
-}
-
 void MainWindow::ftpCommandStarted(int)
 {
     int id = ftp->currentCommand();
@@ -81,6 +56,7 @@ void MainWindow::ftpCommandFinished(int, bool error)
             ui->label->setText(tr("登录出现错误：%1").arg(ftp->errorString()));
         else
             ui->label->setText(tr("登录成功"));
+        ftp->list();
     }
     else if(ftp->currentCommand() == QFtp::Get)
     {
@@ -97,7 +73,7 @@ void MainWindow::ftpCommandFinished(int, bool error)
     {
         if(isDirectory.isEmpty())
         {
-            ui->fileList->addToLevelItem(new QTreeWidgetItem(QStringList()<<tr("<empty>")));
+            ui->fileList->addTopLevelItem(new QTreeWidgetItem(QStringList()<<tr("<empty>")));
             ui->fileList->setEnabled(false);
             ui->label->setText(tr("该目录为空"));
         }
@@ -109,18 +85,112 @@ void MainWindow::ftpCommandFinished(int, bool error)
 }
 
 
+//槽的定义
+void MainWindow::on_connectButton_clicked()
+{
+    ui->fileList->clear();
+    currentPath.clear();
+    isDirectory.clear();
+    ui->progressBar->setValue(0);
 
+    ftp = new QFtp(this);
+    connect(ftp, &QFtp::commandStarted,
+            this, &MainWindow::ftpCommandStarted);
+    connect(ftp, &QFtp::commandFinished,
+            this, &MainWindow::ftpCommandFinished);
+    connect(ftp, &QFtp::listInfo,           //listInfo信号在执行完list命令时发射
+            this, &MainWindow::addToList);
+    connect(ftp, &QFtp::dataTransferProgress,
+            this, &MainWindow::updateDataTransferProgress);
 
+    QString ftpServer = ui->ftpServerLineEdit->text();
+    QString userName  = ui->userNameLineEdit->text();
+    QString passWord  = ui->passWordLineEdit->text();
+    ftp->connectToHost(ftpServer, 21);
+    ftp->login(userName, passWord);
+}
+void MainWindow::addToList(const QUrlInfo &urlInfo)
+{
+    //注意：因为服务器上面使用UTF-8编码，这里要进行编码转换后再显示中文
+    QString name  = QString::fromUtf8(urlInfo.name().toLatin1());
+    QString owner = QString::fromUtf8(urlInfo.owner().toLatin1());
+    QString group = QString::fromUtf8(urlInfo.group().toLatin1());
 
+    QTreeWidgetItem * item = new QTreeWidgetItem;
+    item->setText(0, name);
+    item->setText(1, QString::number(urlInfo.size()));
+    item->setText(2, owner);
+    item->setText(3, group);
+    item->setText(4, urlInfo.lastModified().toString("yyyy-MM-dd"));
+    QPixmap pixmap(urlInfo.isDir()?"../myFTP/dir.png":"../myFTP/file.png");
+    item->setIcon(0, pixmap);
+    isDirectory[name] = urlInfo.isDir();
+    ui->fileList->addTopLevelItem(item);
+    if(!ui->fileList->currentItem())
+    {
+        ui->fileList->setCurrentItem(ui->fileList->topLevelItem(0));
+        ui->fileList->setEnabled(true);
+    }
 
+}
 
+//在双击列表中的目录时，重新调用list函数显示新的目录的内容
+void MainWindow::processItem(QTreeWidgetItem * item, int)
+{
+    //如果这个文件是目录，则打开
+    if(isDirectory.value(item->text(0)))
+    {
+        //注意：目录名称可能是中文，使用ftp命令cd()前需要先进行编码转换
+        QString name = QLatin1String(item->text(0).toUtf8());
+        ui->fileList->clear();
+        isDirectory.clear();
+        currentPath += "/";
+        currentPath += name;
+        ftp->cd(name);
+        ftp->list();
+        ui->cdToParentButton->setEnabled(true);
+    }
+}
 
+//先对现有的路径进行处理，再重新调用list()函数显示上级目录
+void MainWindow::on_cdToParentButton_clicked()
+{
+    ui->fileList->clear();
+    isDirectory.clear();
+    currentPath = currentPath.left(currentPath.lastIndexOf('/'));
+    if(currentPath.isEmpty())
+    {
+        ui->cdToParentButton->setEnabled(false);
+        ftp->cd("/");
+    }
+    else
+    {
+        ftp->cd(currentPath);
+    }
+    ftp->list();    //显示目录内容
+}
 
+//下载按钮的信号槽
+//根据下载的文件名创建本地文件，然后使用get函数下载文件
+void MainWindow::on_downloadButton_clicked()
+{
+    //注意文件名可能包含中文，在使用get函数前需要进行编码转换
+    QString fileName = ui->fileList->currentItem()->text(0);
+    QString name = QLatin1String(fileName.toUtf8());
+    file = new QFile(fileName);
+    if(!file->open(QIODevice::WriteOnly))
+    {
+        delete file;
+        return;
+    }
+    ui->downloadButton->setEnabled(false);
+    ftp->get(name, file);
+}
 
-
-
-
-
-
-
+//更新进度条槽
+void MainWindow::updateDataTransferProgress(qint64 readBytes, qint64 totalBytes)
+{
+    ui->progressBar->setMaximum(totalBytes);
+    ui->progressBar->setValue(readBytes);
+}
 

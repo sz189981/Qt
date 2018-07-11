@@ -2,9 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QHash>
-
 class QFtp;
+#include <QHash>
 class QFile;
 class QUrlInfo;
 class QTreeWidgetItem;
@@ -40,27 +39,11 @@ private slots:
     void addToList(const QUrlInfo &urlInfo);
     //双击一个目录时显示其内容
     void processItem(QTreeWidgetItem *, int);
+
     void on_connectButton_clicked();
+    void on_cdToParentButton_clicked();
+    void on_downloadButton_clicked();
 };
 
 #endif // MAINWINDOW_H
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
