@@ -6,3 +6,16 @@
 !*.txt
 !*.png
 !*.jpg
+
+*.bat
+*.stash
+Makefile
+*.Debug
+*.Release
+*.o
+*.exe
+*.moc
+moc*.cpp
+moc*.h
+ui_*.h
+
