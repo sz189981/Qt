@@ -1,0 +1,8 @@
+﻿!*.cpp   
+!*.h  
+!*.ui
+!*.pro
+!*.user
+!*.txt
+!*.png
+!*.jpg
