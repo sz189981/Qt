@@ -2,11 +2,12 @@
 !*.h  
 !*.ui
 !*.pro
-!*.user
+
 !*.txt
 !*.png
 !*.jpg
 
+*.user
 *.bat
 *.stash
 Makefile
