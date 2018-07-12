@@ -1,0 +1,16 @@
+/*
+18.3 UDP
+sender
+*/
+
+#include "sender.h"
+#include <QApplication>
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    Sender w;
+    w.show();
+
+    return a.exec();
+}
